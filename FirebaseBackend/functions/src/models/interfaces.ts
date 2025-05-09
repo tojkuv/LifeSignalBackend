@@ -32,7 +32,8 @@ export interface UserProfile {
  * @interface ContactReference
  * @property {boolean} isResponder - Whether this contact is a responder for the user
  * @property {boolean} isDependent - Whether this contact is a dependent of the user
- * @property {FirebaseFirestore.DocumentReference} reference - Reference to the contact's user document
+ * @property {FirebaseFirestore.DocumentReference} [reference] - Reference to the contact's user document (legacy format)
+ * @property {string} [referencePath] - Path to the contact's user document (new format)
  * @property {boolean} [sendPings] - Whether to send pings to this contact
  * @property {boolean} [receivePings] - Whether to receive pings from this contact
  * @property {boolean} [notifyOnCheckIn] - Whether to notify this contact on check-in
@@ -44,7 +45,8 @@ export interface UserProfile {
 export interface ContactReference {
   isResponder: boolean;
   isDependent: boolean;
-  reference: FirebaseFirestore.DocumentReference;
+  reference?: FirebaseFirestore.DocumentReference; // Legacy format
+  referencePath?: string; // New format: "users/userId"
   sendPings?: boolean;
   receivePings?: boolean;
   notifyOnCheckIn?: boolean;

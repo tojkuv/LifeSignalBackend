@@ -3,10 +3,6 @@ import { getFirestore } from "firebase-admin/firestore";
 import * as admin from "firebase-admin";
 import { UserProfile } from "../models/interfaces";
 
-// Get Firestore and Messaging instances
-const db = getFirestore();
-const messaging = admin.messaging();
-
 /**
  * Handles the notification logic for check-in reminders and expired check-ins.
  * This function:
@@ -19,6 +15,10 @@ const messaging = admin.messaging();
  * @returns {Promise<void>}
  */
 export async function handleNotifications(): Promise<void> {
+  // Initialize Firestore and Messaging instances
+  const db = getFirestore();
+  const messaging = admin.messaging();
+
   const now = Date.now();
   const snapshot = await db.collection("users").get();
 
@@ -71,7 +71,18 @@ export async function handleNotifications(): Promise<void> {
       for (const contact of user.contacts) {
         if (!contact.isResponder) continue;
 
-        const contactSnap = await contact.reference.get();
+        // Get contact reference - handle both old and new formats
+        let contactRef;
+        if (contact.reference) {
+          contactRef = contact.reference;
+        } else if (contact.referencePath) {
+          contactRef = db.doc(contact.referencePath);
+        } else {
+          logger.warn(`Contact has no reference or referencePath: ${JSON.stringify(contact)}`);
+          continue;
+        }
+
+        const contactSnap = await contactRef.get();
         const contactData = contactSnap.data() as UserProfile;
         const contactToken = contactData?.fcmToken;
         if (!contactToken) continue;

@@ -92,7 +92,8 @@ export const updateContactRelation = onCall(
 
         // Find the existing contact entry in the user's contacts
         const userContactIndex = userContacts.findIndex(c => {
-          const path = c.reference?.path || c.contact?.path;
+          // Check both old reference.path and new referencePath formats
+          const path = c.reference?.path || c.referencePath || c.contact?.path;
           return path === contactRef.path;
         });
 
@@ -132,7 +133,8 @@ export const updateContactRelation = onCall(
         if (updateReciprocal) {
           // Find the user in the contact's contacts list
           const contactUserIndex = contactContacts.findIndex(c => {
-            const path = c.reference?.path || c.contact?.path;
+            // Check both old reference.path and new referencePath formats
+            const path = c.reference?.path || c.referencePath || c.contact?.path;
             return path === userRef.path;
           });
 
@@ -147,14 +149,14 @@ export const updateContactRelation = onCall(
             // Update reciprocal role fields if provided
             if (isResponder !== undefined) updatedContactUser.isDependent = isResponder;
             if (isDependent !== undefined) updatedContactUser.isResponder = isDependent;
-            
+
             // Update reciprocal notification fields if provided
             if (sendPings !== undefined) updatedContactUser.receivePings = sendPings;
             if (receivePings !== undefined) updatedContactUser.sendPings = receivePings;
 
             // Update the contact's contacts array
             contactContacts[contactUserIndex] = updatedContactUser as ContactReference;
-            
+
             // Add the update to our batch
             updates.push(contactRef.update({ contacts: contactContacts }));
           }
