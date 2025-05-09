@@ -41,6 +41,10 @@ export interface UserProfile {
  * @property {string} [nickname] - Optional nickname for this contact
  * @property {string} [notes] - Optional notes about this contact
  * @property {FirebaseFirestore.Timestamp} [lastUpdated] - When this contact was last updated
+ * @property {boolean} [manualAlertActive] - Whether this contact has an active manual alert
+ * @property {FirebaseFirestore.Timestamp} [manualAlertTimestamp] - When the manual alert was activated
+ * @property {FirebaseFirestore.Timestamp} [incomingPingTimestamp] - When an incoming ping was received
+ * @property {FirebaseFirestore.Timestamp} [outgoingPingTimestamp] - When an outgoing ping was sent
  */
 export interface ContactReference {
   isResponder: boolean;
@@ -54,4 +58,8 @@ export interface ContactReference {
   nickname?: string;
   notes?: string;
   lastUpdated?: FirebaseFirestore.Timestamp;
+  manualAlertActive?: boolean;
+  manualAlertTimestamp?: FirebaseFirestore.Timestamp;
+  incomingPingTimestamp?: FirebaseFirestore.Timestamp | null;
+  outgoingPingTimestamp?: FirebaseFirestore.Timestamp | null;
 }

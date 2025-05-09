@@ -9,15 +9,24 @@
 # - All Cloud Functions (addContactRelation, updateContactRelation,
 #   deleteContactRelation, sendCheckInReminders)
 #
-# Usage: ./deploy-all.sh
-# Run this script from the FirebaseBackend directory
+# Usage: ./scripts/deploy-all.sh
+# Run this script from the LifeSignalBackend/FirebaseBackend directory
 #############################################################
 
 echo "=== LifeSignal Firebase Deployment Script ==="
 
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Get the parent directory (FirebaseBackend)
+BASE_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+
+# Change to the base directory
+cd "$BASE_DIR"
+echo "Working directory: $(pwd)"
+
 # First, deploy the Firestore rules
 echo "Step 1: Deploying Firestore security rules..."
-./deploy-firestore-rules.sh
+"$SCRIPT_DIR/deploy-firestore-rules.sh"
 
 # Check if rules deployment was successful
 if [ $? -ne 0 ]; then
@@ -28,7 +37,8 @@ fi
 echo "Step 2: Building and deploying all Firebase functions..."
 
 # Navigate to the functions directory
-cd functions
+cd "$BASE_DIR/functions"
+echo "Functions directory: $(pwd)"
 
 # Install dependencies if needed
 echo "Installing dependencies..."
@@ -59,7 +69,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Return to the original directory
-cd ..
+cd "$BASE_DIR"
 
 echo "✅ All deployments completed successfully!"
 echo "The following functions have been deployed:"
