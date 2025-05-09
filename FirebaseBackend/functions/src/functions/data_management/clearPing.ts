@@ -113,7 +113,7 @@ export const clearPing = onCall(
         return { success: true };
       } catch (error) {
         console.error("Error clearing ping:", error);
-        throw new HttpsError("internal", "Failed to clear ping: " + error.message);
+        throw new HttpsError("internal", "Failed to clear ping: " + (error instanceof Error ? error.message : String(error)));
       }
     }
 );
