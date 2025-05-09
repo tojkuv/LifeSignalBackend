@@ -4,6 +4,10 @@
     "codebase": "default",
     "runtime": "nodejs20"
   },
+  "firestore": {
+    "rules": "firebase.rules",
+    "indexes": "firestore.indexes.json"
+  },
   "emulators": {
     "functions": {
       "port": 5001

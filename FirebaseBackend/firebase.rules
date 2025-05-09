@@ -1,0 +1,161 @@
+/**
+ * Firestore Security Rules for LifeSignal Application
+ *
+ * These rules define the security model for the LifeSignal Firestore database.
+ * They control read/write access to various collections and documents based on:
+ * - User authentication status
+ * - Document ownership
+ * - Contact relationships between users
+ * - Service account access for cloud functions
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    /**
+     * Checks if the request is coming from an authenticated user
+     *
+     * @return {boolean} True if the user is authenticated
+     */
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the authenticated user is accessing their own data
+     *
+     * @param {string} userId - The user ID of the document being accessed
+     * @return {boolean} True if the user is accessing their own data
+     */
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    /**
+     * Validates that a new user document contains all required fields
+     *
+     * @return {boolean} True if the document has all required fields
+     */
+    function hasValidUserFields() {
+      // For new users, we require these basic fields
+      let requiredFields = ['uid', 'phoneNumber', 'qrCodeId'];
+      return requiredFields.hasAll(request.resource.data.keys());
+    }
+
+    /**
+     * Validates that a user update only modifies allowed fields
+     *
+     * @return {boolean} True if only allowed fields are being updated
+     */
+    function hasAllowedUserUpdateFields() {
+      let allowedFields = [
+        'name', 'phoneRegion', 'note', 'qrCodeId', 'checkInInterval', 'lastCheckedIn',
+        'notify30MinBefore', 'notify2HoursBefore', 'fcmToken', 'sessionId',
+        'lastSignInTime', 'profileComplete', 'notificationEnabled', 'lastUpdated',
+        'manualAlertActive', 'manualAlertTimestamp', 'contacts', 'uid', 'phoneNumber',
+        'createdAt', 'email', 'testUser'
+      ];
+
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields);
+    }
+
+    /**
+     * Checks if the user is a test user based on phone number
+     * Test users have special permissions for development and testing
+     *
+     * @return {boolean} True if this is a test user
+     */
+    function isTestUser() {
+      return request.resource.data.phoneNumber == "+11234567890" ||
+             request.resource.data.phoneNumber == "+16505553434" ||
+             resource.data.phoneNumber == "+11234567890" ||
+             resource.data.phoneNumber == "+16505553434";
+    }
+
+    /**
+     * Checks if the authenticated user has the target user in their contacts list
+     * This is used to determine if a user can access another user's data
+     *
+     * @param {string} userId - The user ID of the document being accessed
+     * @return {boolean} True if the authenticated user has the target user in their contacts
+     */
+    function isContact(userId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let contactRefs = userDoc.contacts;
+
+      return contactRefs != null &&
+             contactRefs.hasAny([{
+               reference: /databases/$(database)/documents/users/$(userId)
+             }]);
+    }
+
+    /**
+     * Rules for the users collection
+     * This collection stores user profiles and their contact relationships
+     */
+    match /users/{userId} {
+      // Allow read if the user is authenticated and either:
+      // 1. Accessing their own document, or
+      // 2. The user is a contact of the document owner, or
+      // 3. The request is coming from a service account (for cloud functions)
+      allow read: if isAuthenticated() && (
+        isOwner(userId) ||
+        isContact(userId) ||
+        request.auth.token.firebase.sign_in_provider == 'custom'
+      );
+
+      // Allow create if the user is authenticated and either:
+      // 1. Creating their own document with valid fields, or
+      // 2. Creating a test user document
+      allow create: if isOwner(userId) && (hasValidUserFields() || isTestUser());
+
+      // Allow update if the user is authenticated and either:
+      // 1. Updating their own document with allowed fields, or
+      // 2. It's a test user (which can update any fields), or
+      // 3. The request is coming from a service account (for cloud functions)
+      allow update: if isAuthenticated() && (
+        (isOwner(userId) && hasAllowedUserUpdateFields()) ||
+        isTestUser() ||
+        request.auth.token.firebase.sign_in_provider == 'custom'
+      );
+
+      // Allow delete if the user is authenticated and deleting their own document
+      allow delete: if isOwner(userId);
+
+      // Contacts subcollection rules
+      match /contacts/{contactId} {
+        // Allow read if the user is authenticated and accessing their own contacts
+        allow read: if isOwner(userId);
+
+        // Allow write if the user is authenticated and writing to their own contacts
+        allow write: if isOwner(userId);
+      }
+    }
+
+    /**
+     * Rules for the QR code lookup collection
+     * This collection maps QR codes to user IDs for contact discovery
+     * The document ID is the user's ID, and it contains their QR code
+     */
+    match /qr_lookup/{docId} {
+      // Allow read for any authenticated user (needed for QR code scanning)
+      allow read: if isAuthenticated();
+
+      // Allow create/update if the user is authenticated and the document ID is the user's ID
+      allow create, update: if isAuthenticated() && docId == request.auth.uid;
+
+      // Allow delete if the user is authenticated and the document ID is the user's ID
+      allow delete: if isAuthenticated() && docId == request.auth.uid;
+    }
+
+    /**
+     * Rules for the test collection
+     * This collection is used for testing Firebase connectivity
+     * It has relaxed security rules for authenticated users
+     */
+    match /test/{document=**} {
+      // Allow read/write for authenticated users
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
